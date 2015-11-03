@@ -1,0 +1,103 @@
+<#include "common.ftl">
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!-- namespace必须指向Dao接口 -->
+<mapper namespace="${dao_package}.${className}Dao">
+	<resultMap id="${className}ResultMap" type="${model_package}.${className}">
+		<#list table.primaryKeyColumns as pkColumn>
+		<id property="${pkColumn.columnNameLowerCase}" column="${pkColumn}" />
+		</#list><#list table.columns as column><#if !column.pk>
+		<result property="${column.columnNameLowerCase}" column="${column}" />
+		</#if>
+		</#list>
+	</resultMap>
+
+	<!-- 定义可重用的SQL代码段，可以包含在其他语句中 -->
+	<sql id="base_column">
+		 <#list table.columns as column><#if column_index==0>${column}<#else>
+		 ,${column}</#if></#list>
+	</sql>
+	
+	<!-- 定义可重用的WHERE SQL公共代码段，可以包含在其他语句中 -->
+	<sql id="where_column">
+		<#list table.columns as column>
+		<if test="${column.columnNameLowerCase} != null and ${column.columnNameLowerCase} != ''">
+			AND ${column} = <#noparse>#{</#noparse>${column.columnNameLowerCase},jdbcType=${column.sqlTypeName}<#noparse>}</#noparse>
+		</if>
+		</#list>
+	</sql>
+	<select id="findAll" resultMap="${className}ResultMap">
+	
+		SELECT	<include refid="base_column" />
+		FROM	${table.tableName}
+	
+	</select>
+	<select id="find" resultMap="${className}ResultMap">
+	
+		SELECT	<include refid="base_column" />
+		FROM	${table.tableName}
+		WHERE	${pk}=<#noparse>#{</#noparse>${pk.columnNameLowerCase},jdbcType=${pk.sqlTypeName}<#noparse>}</#noparse>
+	
+	</select>
+	
+	<select id="findByPk" resultMap="${className}ResultMap">
+	
+		SELECT	<include refid="base_column" />
+		FROM	${table.tableName}
+		WHERE	<#list table.primaryKeyColumns as pkColumn>${pkColumn}=<#noparse>#{</#noparse>${pkColumn.columnNameLowerCase},jdbcType=${pkColumn.sqlTypeName}<#noparse>}</#noparse>
+		  <#if pkColumn_has_next>AND	</#if></#list>
+	</select>
+
+	<select id="findByPage" resultMap="${className}ResultMap">
+	
+		SELECT	<include refid="base_column" />
+		FROM	${table.tableName}
+		<where>
+			<include refid="where_column" />
+		</where>
+		
+	</select>
+	
+	<insert id="insert" parameterType="${model_package}.${className}">
+	
+		INSERT INTO ${table.tableName}
+				(<#list table.columns as column><#if column_index == 0>${column}<#else>,${column}</#if>
+				</#list>)
+		VALUES	(<#list table.columns as column><#if column_index == 0><#noparse>#{</#noparse>${column.columnNameLowerCase},jdbcType=${column.sqlTypeName}}<#else>,<#noparse>#{</#noparse>${column.columnNameLowerCase}}</#if>
+				</#list>)
+				
+	</insert>
+	
+	<update id="update" parameterType="${model_package}.${className}">
+	
+		UPDATE	${table.tableName}
+		<set>
+			<#list table.columns as column>
+			<if test="${column.columnNameLowerCase} != null and ${column.columnNameLowerCase} != ''">
+				${column} = <#noparse>#{</#noparse>${column.columnNameLowerCase},jdbcType=${column.sqlTypeName}},
+			</if>
+			</#list>
+		</set>
+		WHERE	<#list table.primaryKeyColumns as pkColumn>${pkColumn} = <#noparse>#{</#noparse>${pkColumn.columnNameLowerCase},jdbcType=${pkColumn.sqlTypeName}<#noparse>}</#noparse>
+		  <#if pkColumn_has_next>AND	</#if></#list>
+	</update>
+	
+	<delete id="deleteByPk">
+	
+		DELETE	FROM ${table.tableName}
+		WHERE	<#list table.primaryKeyColumns as pkColumn>${pkColumn} = <#noparse>#{</#noparse>${pkColumn.columnNameLowerCase},jdbcType=${pkColumn.sqlTypeName}<#noparse>}</#noparse>
+		  <#if pkColumn_has_next>AND	</#if></#list>
+	</delete>
+	
+	<delete id="delete">
+	
+		DELETE	FROM ${table.tableName}
+		WHERE	${pk}
+		   IN
+    	<foreach item="${classNameLowerCase}Id" index="index" collection="array" open="(" separator="," close=")">
+	  		<#noparse>#{</#noparse>${classNameLowerCase}Id<#noparse>}</#noparse> 
+		</foreach>
+		  
+	</delete>
+</mapper> 
